@@ -3,6 +3,8 @@
     using System;
     using System.Collections.Generic;
     using System.IO;
+    using System.Linq;
+
     using Microsoft.Build.Construction;
 
     class NuggetedSolution
@@ -27,6 +29,7 @@
 
         public string Name { get; private set; } = String.Empty;
 
+        public FileReference NuggetConfig { get; private set; }
 
         private void LoadSolution(string path)
         {
@@ -35,25 +38,50 @@
             var rootFolder = System.IO.Path.GetDirectoryName(path);
 
             var projects = sln.ProjectsInOrder;
-            var projectsTree = this.LoadProjectsTree(projects, rootFolder);
+            var projectsTree = this.LoadProjectsStack(projects, rootFolder);
+            
+            this.FindNugetConfig(sln, rootFolder);
         }
 
-        private ProjectsTree LoadProjectsTree(IReadOnlyList<ProjectInSolution> projects, string rootFolder)
+        /// <summary>
+        /// Tries to locate Nugget.config in solution folder
+        /// </summary>
+        /// <param name="sln"></param>
+        /// <param name="rootFolder"></param>
+        private void FindNugetConfig(SolutionFile sln, string rootFolder)
         {
-            var tree = new ProjectsTree();
+            var configFile = Directory.EnumerateFiles(rootFolder, "nuget.config", SearchOption.TopDirectoryOnly).FirstOrDefault();
+            if (configFile != null)
+            {
+                this.NuggetConfig = new FileReference(configFile);
+            }
+            else
+            {
+                this.NuggetConfig = FileReference.NotExists;
+            }
+        }
+
+        private ProjectsProcessingStack LoadProjectsStack(IReadOnlyList<ProjectInSolution> projects, string rootFolder)
+        {
+            var stack = new ProjectsProcessingStack();
 
             foreach (var project in projects)
             {
-                var nuggetedProject = NuggetedProject.Load(project);
-                if (nuggetedProject.Exists && nuggetedProject.IsNuggetable)
+                if (project.ProjectType == SolutionProjectType.KnownToBeMSBuildFormat)
                 {
-                    tree.Append(nuggetedProject);
+                    Console.WriteLine($"Analyzing {project.ProjectName}...");
+
+                    var nuggetedProject = NuggetedProject.Load(project);
+                    if (nuggetedProject.Exists && nuggetedProject.IsValid && nuggetedProject.IsNuggetable && nuggetedProject.IsSupported)
+                    {
+                        stack.Append(nuggetedProject);
+                    }
                 }
             }
 
-            tree.Build();
+            stack.Build();
 
-            return tree;
+            return stack;
         }
 
 
@@ -100,18 +128,5 @@
         }
 
         #endregion
-    }
-
-    internal class ProjectsTree
-    {
-        public void Build()
-        {
-            throw new NotImplementedException();
-        }
-
-        public void Append(object nuggetedProject)
-        {
-            throw new NotImplementedException();
-        }
     }
 }
