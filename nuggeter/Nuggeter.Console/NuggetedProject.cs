@@ -27,7 +27,7 @@
             this.LoadXml();
 
             this.LoadReferences();
-            this.LoadSpecialFiles();
+            this.LoadFiles();
             this.LoadDependencies();
             // ...
         }
@@ -69,19 +69,16 @@
 
         public ICollection<Reference> References { get; } = new List<Reference>();
 
+        public ICollection<ProjectFile> Files { get; } = new List<ProjectFile>();
+
         public VsProjectSchemaVersion SchemaVersion { get; private set; }
 
-        private void LoadSpecialFiles()
+        private void LoadFiles()
         {
             //this.NugetFile = project.Dependencies.Where(p => p.)
         }
 
         private void LoadDependencies()
-        {
-
-        }
-
-        private void LoadReferences()
         {
             if (this.SchemaVersion == VsProjectSchemaVersion.Clasic)
             {
@@ -100,6 +97,49 @@
 
                 // ... other types
             }
+        }
+
+        private void LoadReferences()
+        {
+            if (this.SchemaVersion == VsProjectSchemaVersion.Clasic)
+            {
+                var refs = _xDoc.DocumentElement.SelectNodes(@"//msbuild:ItemGroup/msbuild:Compile", _namespaceMngr);
+                if (refs != null)
+                {
+                    foreach (XmlNode referrence in refs)
+                    {
+                        Files.Add(BuildFileInfoFromXml(referrence, FileType.Compile));
+                    }
+                }
+
+                refs = _xDoc.DocumentElement.SelectNodes(@"//msbuild:ItemGroup/msbuild:Compile", _namespaceMngr);
+                if (refs != null)
+                {
+                    foreach (XmlNode referrence in refs)
+                    {
+                        Files.Add(BuildFileInfoFromXml(referrence, FileType.Content));
+                    }
+                }
+            }
+            else
+            {
+                var refs = _xDoc.DocumentElement.SelectNodes(@"//ItemGroup/ProjectReference", _namespaceMngr);
+
+                // ... other types
+            }
+        }
+
+        private ProjectFile BuildFileInfoFromXml(XmlNode fileDefinition, FileType fileType)
+        {
+            if (fileDefinition == null) throw new ArgumentNullException(nameof(fileDefinition));
+
+            var includeValue = fileDefinition.Attributes["Include"]?.Value;
+            var includeInfo = AnalyzeIncludeInfoString(includeValue); // TODO: same?
+
+            return new ProjectFile(includeInfo.Name, this.Path)
+            {
+                FileType = fileType
+            };
         }
 
         private Reference BuildReferenceInfoFromXml(XmlNode reference)
@@ -221,5 +261,21 @@
         }
 
         #endregion Static Part
+    }
+
+    internal enum FileType
+    {
+        Compile,
+        Content
+    }
+
+    internal class ProjectFile
+    {
+        public ProjectFile(string fileName, string projectFilePath)
+        {
+            throw new NotImplementedException();
+        }
+
+        public FileType FileType { get; private set; }
     }
 }
