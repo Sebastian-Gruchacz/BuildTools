@@ -65,9 +65,11 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="FileReference.cs" />
+    <Compile Include="FromFolder.cs" />
     <Compile Include="NuggetedProject.cs" />
     <Compile Include="NuggetedSolution.cs" />
     <Compile Include="Nuggeter.cs" />
+    <Compile Include="ProjectFile.cs" />
     <Compile Include="ProjectsProcessingStack.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Reference.cs" />

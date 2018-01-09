@@ -30,21 +30,28 @@
             this.LoadFiles();
             this.LoadDependencies();
             // ...
+
+            this.IsNuggetable = this.CheckIsNuggetable();
+        }
+
+        private bool CheckIsNuggetable()
+        {
+            return this.Files.Select(f => f.FileName.ToLower()).Contains($"{this.Name}.nuspec");
         }
 
         private void LoadXml()
         {
-            _xDoc = new XmlDocument();
-            _xDoc.Load(this.Path);
-            _namespaceMngr = new XmlNamespaceManager(_xDoc.NameTable);
-            _namespaceMngr.AddNamespace("msbuild", @"http://schemas.microsoft.com/developer/msbuild/2003");
+            this._xDoc = new XmlDocument();
+            this._xDoc.Load(this.Path);
+            this._namespaceMngr = new XmlNamespaceManager(this._xDoc.NameTable);
+            this._namespaceMngr.AddNamespace("msbuild", @"http://schemas.microsoft.com/developer/msbuild/2003");
 
             this.SchemaVersion = this.RecognizeFormat();
         }
 
         private VsProjectSchemaVersion RecognizeFormat()
         {
-            var fwkVersion = _xDoc.DocumentElement.SelectSingleNode(@"//PropertyGroup/TargetFramework", _namespaceMngr);
+            var fwkVersion = this._xDoc.DocumentElement.SelectSingleNode(@"//PropertyGroup/TargetFramework", this._namespaceMngr);
             if (fwkVersion != null)
             {
                 return VsProjectSchemaVersion.New;
@@ -82,18 +89,18 @@
         {
             if (this.SchemaVersion == VsProjectSchemaVersion.Clasic)
             {
-                var refs = _xDoc.DocumentElement.SelectNodes(@"//msbuild:ItemGroup/msbuild:Reference", _namespaceMngr);
+                var refs = this._xDoc.DocumentElement.SelectNodes(@"//msbuild:ItemGroup/msbuild:Reference", this._namespaceMngr);
                 if (refs != null)
                 {
                     foreach (XmlNode referrence in refs)
                     {
-                        References.Add(BuildReferenceInfoFromXml(referrence));
+                        this.References.Add(this.BuildReferenceInfoFromXml(referrence));
                     }
                 }
             }
             else
             {
-                var refs = _xDoc.DocumentElement.SelectNodes(@"//ItemGroup/ProjectReference", _namespaceMngr);
+                var refs = this._xDoc.DocumentElement.SelectNodes(@"//ItemGroup/ProjectReference", this._namespaceMngr);
 
                 // ... other types
             }
@@ -103,27 +110,27 @@
         {
             if (this.SchemaVersion == VsProjectSchemaVersion.Clasic)
             {
-                var refs = _xDoc.DocumentElement.SelectNodes(@"//msbuild:ItemGroup/msbuild:Compile", _namespaceMngr);
+                var refs = this._xDoc.DocumentElement.SelectNodes(@"//msbuild:ItemGroup/msbuild:Compile", this._namespaceMngr);
                 if (refs != null)
                 {
                     foreach (XmlNode referrence in refs)
                     {
-                        Files.Add(BuildFileInfoFromXml(referrence, FileType.Compile));
+                        this.Files.Add(this.BuildFileInfoFromXml(referrence, FileType.Compile));
                     }
                 }
 
-                refs = _xDoc.DocumentElement.SelectNodes(@"//msbuild:ItemGroup/msbuild:Compile", _namespaceMngr);
+                refs = this._xDoc.DocumentElement.SelectNodes(@"//msbuild:ItemGroup/msbuild:Compile", this._namespaceMngr);
                 if (refs != null)
                 {
                     foreach (XmlNode referrence in refs)
                     {
-                        Files.Add(BuildFileInfoFromXml(referrence, FileType.Content));
+                        this.Files.Add(this.BuildFileInfoFromXml(referrence, FileType.Content));
                     }
                 }
             }
             else
             {
-                var refs = _xDoc.DocumentElement.SelectNodes(@"//ItemGroup/ProjectReference", _namespaceMngr);
+                var refs = this._xDoc.DocumentElement.SelectNodes(@"//ItemGroup/ProjectReference", this._namespaceMngr);
 
                 // ... other types
             }
@@ -134,7 +141,7 @@
             if (fileDefinition == null) throw new ArgumentNullException(nameof(fileDefinition));
 
             var includeValue = fileDefinition.Attributes["Include"]?.Value;
-            var includeInfo = AnalyzeIncludeInfoString(includeValue); // TODO: same?
+            var includeInfo = this.AnalyzeIncludeInfoString(includeValue); // TODO: same?
 
             return new ProjectFile(includeInfo.Name, this.Path)
             {
@@ -147,7 +154,7 @@
             if (reference == null) throw new ArgumentNullException(nameof(reference));
 
             var includeValue = reference.Attributes["Include"]?.Value;
-            var includeInfo = AnalyzeIncludeInfoString(includeValue);
+            var includeInfo = this.AnalyzeIncludeInfoString(includeValue);
 
             var referenceInfo = new Reference
             {
@@ -267,15 +274,5 @@
     {
         Compile,
         Content
-    }
-
-    internal class ProjectFile
-    {
-        public ProjectFile(string fileName, string projectFilePath)
-        {
-            throw new NotImplementedException();
-        }
-
-        public FileType FileType { get; private set; }
     }
 }
