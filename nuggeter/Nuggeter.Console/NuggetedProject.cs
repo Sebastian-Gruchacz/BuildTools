@@ -10,6 +10,9 @@
 
     internal class NuggetedProject
     {
+        private XmlDocument _xDoc;
+        private XmlNamespaceManager _namespaceMngr;
+
         private NuggetedProject(ProjectInSolution project = null)
         {
             if (project == null)
@@ -20,20 +23,36 @@
 
             this.Path = project.AbsolutePath;
             this.Name = project.ProjectName;
- 
-            this.LoadSpecialFiles(project);
-            this.LoadDependencies(project);
+
+            this.LoadXml();
+
+            this.LoadReferences();
+            this.LoadSpecialFiles();
+            this.LoadDependencies();
             // ...
         }
 
-        private void LoadSpecialFiles(ProjectInSolution project)
+        private void LoadXml()
         {
-            //this.NugetFile = project.Dependencies.Where(p => p.)
+            _xDoc = new XmlDocument();
+            _xDoc.Load(this.Path);
+            _namespaceMngr = new XmlNamespaceManager(_xDoc.NameTable);
+            _namespaceMngr.AddNamespace("msbuild", @"http://schemas.microsoft.com/developer/msbuild/2003");
+
+            this.SchemaVersion = this.RecognizeFormat();
         }
 
-        private void LoadDependencies(ProjectInSolution project)
+        private VsProjectSchemaVersion RecognizeFormat()
         {
-            
+            var fwkVersion = _xDoc.DocumentElement.SelectSingleNode(@"//PropertyGroup/TargetFramework", _namespaceMngr);
+            if (fwkVersion != null)
+            {
+                return VsProjectSchemaVersion.New;
+            }
+            else
+            {
+                return VsProjectSchemaVersion.Clasic;
+            }
         }
 
         public bool Exists { get; private set; } = true;
@@ -48,28 +67,46 @@
 
         public string Name { get; }
 
+        public ICollection<Reference> References { get; } = new List<Reference>();
 
+        public VsProjectSchemaVersion SchemaVersion { get; private set; }
 
-        private IEnumerable<Reference> LoadReferences(string content)
+        private void LoadSpecialFiles()
         {
-            XmlDocument xDoc = new XmlDocument();
-            xDoc.LoadXml(content);
-            var nsm = new XmlNamespaceManager(xDoc.NameTable);
-            nsm.AddNamespace("msbuild", @"http://schemas.microsoft.com/developer/msbuild/2003");
+            //this.NugetFile = project.Dependencies.Where(p => p.)
+        }
 
-            var refs = xDoc.DocumentElement.SelectNodes(@"//msbuild:ItemGroup/msbuild:Reference", nsm);
-            if (refs != null)
+        private void LoadDependencies()
+        {
+
+        }
+
+        private void LoadReferences()
+        {
+            if (this.SchemaVersion == VsProjectSchemaVersion.Clasic)
             {
-                foreach (XmlNode referrence in refs)
+                var refs = _xDoc.DocumentElement.SelectNodes(@"//msbuild:ItemGroup/msbuild:Reference", _namespaceMngr);
+                if (refs != null)
                 {
-                    yield return BuildReferrenceInfoFromXml(referrence);
+                    foreach (XmlNode referrence in refs)
+                    {
+                        References.Add(BuildReferenceInfoFromXml(referrence));
+                    }
                 }
+            }
+            else
+            {
+                var refs = _xDoc.DocumentElement.SelectNodes(@"//ItemGroup/ProjectReference", _namespaceMngr);
+
+                // ... other types
             }
         }
 
-        private Reference BuildReferrenceInfoFromXml(XmlNode referrence)
+        private Reference BuildReferenceInfoFromXml(XmlNode reference)
         {
-            var includeValue = referrence.Attributes["Include"].Value;
+            if (reference == null) throw new ArgumentNullException(nameof(reference));
+
+            var includeValue = reference.Attributes["Include"]?.Value;
             var includeInfo = AnalyzeIncludeInfoString(includeValue);
 
             var referenceInfo = new Reference
@@ -77,7 +114,7 @@
                 Name = includeInfo.Name
             };
 
-            foreach (XmlNode child in referrence.ChildNodes)
+            foreach (XmlNode child in reference.ChildNodes)
             {
                 switch (child.Name)
                 {
@@ -118,6 +155,11 @@
 
         private IncludeInfo AnalyzeIncludeInfoString(string includeValue)
         {
+            if (includeValue == null)
+            {
+                return null;
+            }
+
             string[] parts = includeValue.Split(',');
             if (parts.Length == 1)
             {
@@ -157,7 +199,7 @@
                 };
             }
 
-            if (!project.AbsolutePath.EndsWith("*.csproj"))
+            if (!project.AbsolutePath.EndsWith(".csproj"))
             {
                 return new NuggetedProject
                 {

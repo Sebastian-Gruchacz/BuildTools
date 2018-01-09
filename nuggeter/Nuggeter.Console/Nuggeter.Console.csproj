@@ -71,6 +71,7 @@
     <Compile Include="ProjectsProcessingStack.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Reference.cs" />
+    <Compile Include="VsProjectSchemaVersion.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

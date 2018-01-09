@@ -39,7 +39,7 @@
 
             var projects = sln.ProjectsInOrder;
             var projectsTree = this.LoadProjectsStack(projects, rootFolder);
-            
+
             this.FindNugetConfig(sln, rootFolder);
         }
 
